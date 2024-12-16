@@ -269,13 +269,15 @@ function main()
     while true do
         wait(0)
 
+        -- автообновление
         if update_state then
             downloadUrlToFile(ScriptSource, ScriptPath, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
                     UserNotification("Скрипт успешно обновлен до версии "..UpdateIni.version.VersionText..". Приятного пользования!")
                     thisScript():reload()
+                end
             end)
-
+        end
 
         -- проверка на убийство
 
