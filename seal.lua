@@ -23,7 +23,7 @@ local ScriptVersion_text = '0.1'
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
 
-local ScriptSource = ""
+local ScriptSource = "https://github.com/meinhard-ru/seal/raw/refs/heads/main/seal.lua"
 local ScriptPath = thisScript().path
 
 -- подгрузка настроек из seal.ini
@@ -272,7 +272,7 @@ function main()
         if update_state then
             downloadUrlToFile(ScriptSource, ScriptPath, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    UserNotification("Скрипт успешно обновлен до версии"..UpdateIni.version.VersionText)
+                    UserNotification("Скрипт успешно обновлен до версии "..UpdateIni.version.VersionText..". Приятного пользования!")
                     thisScript():reload()
             end)
 
