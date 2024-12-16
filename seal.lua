@@ -17,8 +17,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 1
-local ScriptVersion_text = '0.1'
+local ScriptVersion = 2
+local ScriptVersion_text = '0.2'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
