@@ -17,8 +17,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 1
-local ScriptVersion_text = '0.1'
+local ScriptVersion = 2
+local ScriptVersion_text = '0.11'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -310,7 +310,6 @@ end
 
 -- открытие главного меню скрипта
 function MainMenu()
-	UserNotification("Тут должно открыться меню.")
 	WinState[0] = not WinState[0]
 end
 
@@ -427,7 +426,6 @@ end
 function sampev.onServerMessage(color, text)
     if text:find("^.+%[.*%]% {FFFFFF%}(.*)%[(.*)%]: DCHECKSEALKPOSX.+Y.+Z.+") and UseSquadMark[0] and ActivateKillsay[0] then
         SendNick, SendID, MarkX, MarkY, MarkZ = text:match("^.+%[.*%]% {FFFFFF%}(.*)%[(.*)%]: DCHECKSEALKPOSX(.+)Y(.+)Z(.+)")
-        UserNotification("text find")
         SetDeathCheckpoint(MarkX, MarkY, MarkZ)
         if IgnoreMarkText[0] then
             return false
