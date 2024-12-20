@@ -17,8 +17,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 2
-local ScriptVersion_text = '0.11'
+local ScriptVersion = 3
+local ScriptVersion_text = '0.12'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -37,6 +37,7 @@ local ScriptSettings = inicfg.load({
         S_UseSquadMark = false,
         S_IgnoreMarkText = false,
         S_IgnoreYourMark = false,
+        S_ActivationKey = '',
         S_UseCustomMarkTime = false,
         S_CustomMarkTime = 1000,
         S_AutoReport = false;
@@ -211,7 +212,6 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
             imgui.RadioButtonIntPtr(tostring(u8"За мат извини"), KillsayVariation, 2)
             imgui.RadioButtonIntPtr(tostring(u8"Hasta la vista"), KillsayVariation, 3)
             imgui.RadioButtonIntPtr(tostring(u8"Использовать свою отыгровку"), KillsayVariation, 4)
-
             if KillsayVariation[0] == 4 then
                 imgui.Text(u8"Максимальное количество символов - 256\nИспользовать никнейм противника в отыгровках - $peenick")
                 imgui.InputTextMultiline("##Своя отыгровка", CustomKillsay, 256)
@@ -296,7 +296,7 @@ function main()
                         EnemyX, EnemyY, EnemyZ = getCharCoordinates(EnemyTarget)
                         EnemyIsKilled = true
                         if EnemyIsKilled and AutoReport[0] then
-                            wait(1000)
+                            wait(1600)
                             Killsay()
                         end
                     end
