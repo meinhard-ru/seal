@@ -1,15 +1,12 @@
--- инициализация библиотек
 local inicfg = require 'inicfg'
 local sampev = require 'samp.events'
 local dlstatus = require('moonloader').download_status
 local ffi = require 'ffi'
 
--- инициализация mimgui
 local imgui = require 'mimgui'
 local new = imgui.new
 local ActiveMenu = 1
 
--- кодировка
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -17,8 +14,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 3
-local ScriptVersion_text = '0.12'
+local ScriptVersion = 4
+local ScriptVersion_text = '0.2'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -26,7 +23,6 @@ local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
 local ScriptSource = "https://github.com/meinhard-ru/seal/raw/refs/heads/main/seal.lua"
 local ScriptPath = thisScript().path
 
--- подгрузка настроек из seal.ini
 local SourceSettings = "seal.ini"
 local ScriptSettings = inicfg.load({
     settings = {
@@ -81,8 +77,8 @@ local WinState = new.bool(false)
 local CheckpointTable = {}
 local MapIconsTable = {}
 local T_CustomKillsay = {}
+local IsKillsayActive = false
 
--- Стиль Mimgui
 function SoftBlueTheme()
     imgui.SwitchContext()
     local style = imgui.GetStyle()
@@ -206,7 +202,6 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
 
     elseif ActiveMenu == 2 then
 
-            -- варианты отыгровок убийств
             imgui.RadioButtonIntPtr(tostring(u8"Без использования отыгровки"), KillsayVariation, 0)
             imgui.RadioButtonIntPtr(tostring(u8"Обассывание \"Классическое\""), KillsayVariation, 1)
             imgui.RadioButtonIntPtr(tostring(u8"За мат извини"), KillsayVariation, 2)
@@ -259,7 +254,6 @@ function main()
         end
     end)
 
-    -- уведомление при загрузке скрипта
 	UserNotification("Скрипт успешно загружен. Автор: Isus Christos")
     UserNotification("Активация - /seal, Версия скрипта - "..ScriptVersion_text)
 
@@ -279,8 +273,6 @@ function main()
             end)
         end
 
-        -- проверка на убийство
-
         if ActivateKillsay[0] then
             EnemyResult, EnemyTarget = getCharPlayerIsTargeting(playerHandle)
 
@@ -292,11 +284,10 @@ function main()
                     EnemyName, EnemySurname = string.match(EnemyNickname, "(%g+)_(%g+)")
                     EnemyHP = sampGetPlayerHealth(EnemyID)
 
-                    if EnemyHP == 0 then
+                    if EnemyHP == 0 and isCharDead(EnemyTarget) then
                         EnemyX, EnemyY, EnemyZ = getCharCoordinates(EnemyTarget)
                         EnemyIsKilled = true
-                        if EnemyIsKilled and AutoReport[0] then
-                            wait(1600)
+                        if EnemyIsKilled and AutoReport[0] and not IsKillsayActive then
                             Killsay()
                         end
                     end
@@ -308,25 +299,24 @@ function main()
 	wait(-1)
 end
 
--- открытие главного меню скрипта
 function MainMenu()
 	WinState[0] = not WinState[0]
 end
 
--- основная логика скрипта
 function Killsay()
     lua_thread.create(function()
-        if EnemyIsKilled then
+        if EnemyIsKilled and not IsKillsayActive then
 
+            IsKillsayActive = true
             EnemyIsKilled = false
+
             PlayerX, PlayerY, PlayerZ = getCharCoordinates(playerPed)
 
             if SendSquadMark[0] then
                 Killsay_SendSquadMark()
             end
 
-            -- вариации насмешек после убийства
-            if getDistanceBetweenCoords3d(EnemyX, EnemyY, EnemyZ, PlayerX, PlayerY, PlayerZ) < 20 then
+            if getDistanceBetweenCoords3d(EnemyX, EnemyY, EnemyZ, PlayerX, PlayerY, PlayerZ) < 15 then
 
                 if KillsayVariation[0] == 1 then
                     sampSendChat("/me расстегнул ширинку, приспустил джинсы, сделал тяжелый вдох, достал инструмент.")
@@ -349,28 +339,38 @@ function Killsay()
                     wait(1400)
 
                 elseif KillsayVariation[0] == 4 then
-                    Killsay_CustomKillsay()
-                end
+                    for CustomKillsay_text in u8:decode(ffi.string(CustomKillsay)):gmatch("[^\r\n]+") do
+                        CustomKillsay_text = CustomKillsay_text:gsub("$peenick", ''..EnemyNickname)
+                        table.insert(T_CustomKillsay, CustomKillsay_text)
+                    end
 
+                    for i, CustomKillsay_text in ipairs(T_CustomKillsay) do
+                        sampSendChat(CustomKillsay_text)
+                        wait(1400)
+                    end
+
+                    T_CustomKillsay = {}
+
+                end
             end
 
-            -- отчет об убийстве в /rb
+
             if ReportSquad[0] then
                 sampSendChat("/fs "..EnemyNickname.."["..EnemyID.."] нейтрализован.")
                 wait(1200)
             end
 
-            -- отчет об убийстве в /fs
             if ReportRadio[0] then
                 sampSendChat("/rb "..EnemyNickname.."["..EnemyID.."] нейтрализован.")
                 wait(1200)
             end
 
+            IsKillsayActive = false
+
         end
     end)
 end
 
--- создание чекпоинта на месте смерти противника
 function SetDeathCheckpoint()
     local PlayerNickname = sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(playerPed)))
     if PlayerNickname == SendNick and IgnoreYourMark[0] then
@@ -414,7 +414,6 @@ function SetDeathCheckpoint()
     end
 end
 
--- отправка координат убийства
 function Killsay_SendSquadMark()
     if getActiveInterior() == 0 then
         sampSendChat("/u DCHECKSEALKPOSX"..math.floor(EnemyX).."Y"..math.floor(EnemyY).."Z"..math.floor(EnemyZ))
@@ -422,7 +421,6 @@ function Killsay_SendSquadMark()
     end
 end
 
--- поиск сообщения об отправке координат в /fs
 function sampev.onServerMessage(color, text)
     if text:find("^.+%[.*%]% {FFFFFF%}(.*)%[(.*)%]: DCHECKSEALKPOSX.+Y.+Z.+") and UseSquadMark[0] and ActivateKillsay[0] then
         SendNick, SendID, MarkX, MarkY, MarkZ = text:match("^.+%[.*%]% {FFFFFF%}(.*)%[(.*)%]: DCHECKSEALKPOSX(.+)Y(.+)Z(.+)")
@@ -433,26 +431,6 @@ function sampev.onServerMessage(color, text)
     end
 end
 
-function Killsay_CustomKillsay()
-    lua_thread.create(function()
-
-        for CustomKillsay_text in u8:decode(ffi.string(CustomKillsay)):gmatch("[^\r\n]+") do
-            CustomKillsay_text = CustomKillsay_text:gsub("$peenick", ''..EnemyNickname)
-            table.insert(T_CustomKillsay, CustomKillsay_text)
-        end
-
-        for i, CustomKillsay_text in ipairs(T_CustomKillsay) do
-            sampSendChat(CustomKillsay_text)
-            wait(1400)
-        end
-
-        T_CustomKillsay = {}
-
-    end)
-
-end
-
--- обрабатывание уведомлений для пользователя
 function UserNotification(UserNorification_text)
     sampAddChatMessage("[SEAL] {FFFFFF}"..UserNorification_text, 0xDC143C)
 end
