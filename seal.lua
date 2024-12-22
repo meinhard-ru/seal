@@ -14,8 +14,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 5
-local ScriptVersion_text = '0.3'
+local ScriptVersion = 6
+local ScriptVersion_text = '0.31'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -34,6 +34,7 @@ local ScriptSettings = inicfg.load({
         S_IgnoreMarkText = false,
         S_IgnoreYourMark = false,
         S_UseSoundMark = false,
+        S_UseSoundMarkAlt = false,
         S_ActivationKey = '',
         S_UseCustomMarkTime = false,
         S_CustomMarkTime = 1500,
@@ -41,6 +42,7 @@ local ScriptSettings = inicfg.load({
         S_ReportRadio = false,
         S_ReportSquad = false,
         S_FriendReport = false,
+        S_UseSoundMarkVariation = 1,
 
     },
 
@@ -68,6 +70,8 @@ local UseSquadMark = imgui.new.bool(ScriptSettings.settings.S_UseSquadMark)
 local IgnoreMarkText = imgui.new.bool(ScriptSettings.settings.S_IgnoreMarkText)
 local IgnoreYourMark = imgui.new.bool(ScriptSettings.settings.S_IgnoreYourMark)
 local UseSoundMark = imgui.new.bool(ScriptSettings.settings.S_UseSoundMark)
+local UseSoundMarkAlt = imgui.new.bool(ScriptSettings.settings.S_UseSoundMarkAlt)
+local UseSoundMarkVariation = imgui.new.int(ScriptSettings.settings.S_UseSoundMarkVariation)
 local UseCustomMarkTime = imgui.new.bool(ScriptSettings.settings.S_UseCustomMarkTime)
 local CustomMarkTime = new.int(ScriptSettings.settings.S_CustomMarkTime)
 
@@ -152,7 +156,7 @@ end
 
 imgui.OnFrame(function() return WinState[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(500,500), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(800, 400), imgui.Cond.Always)
+    imgui.SetNextWindowSize(imgui.ImVec2(800,500), imgui.Cond.Always)
     imgui.Begin('SEAL', WinState, imgui.WindowFlags.NoResize)
     SoftBlueTheme()
 
@@ -191,7 +195,9 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
                 S_ReportRadio = ReportRadio[0],
                 S_ReportSquad = ReportSquad[0],
                 S_FriendReport = FriendReport[0],
-                S_UseSoundMark = UseSoundMark[0]
+                S_UseSoundMark = UseSoundMark[0],
+                S_UseSoundMarkVariation = UseSoundMarkVariation[0],
+                S_UseSoundMarkAlt = UseSoundMarkAlt[0]
 
             },
 
@@ -231,6 +237,20 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
                 imgui.Checkbox(u8'Не показывать текст меток в чате', IgnoreMarkText)
                 imgui.Checkbox(u8'Игнорировать установку собственных меток', IgnoreYourMark)
                 imgui.Checkbox(u8'Проигрывать звук при установке метки', UseSoundMark)
+                if UseSoundMark[0] then
+                    imgui.Separator()
+                    imgui.RadioButtonIntPtr(tostring(u8"Курлыкание пейджера"), UseSoundMarkVariation, 1)
+                    imgui.SameLine()
+                    imgui.RadioButtonIntPtr(tostring(u8"Синтезаторная хуйня"), UseSoundMarkVariation, 2)
+                    imgui.SameLine()
+                    imgui.RadioButtonIntPtr(tostring(u8"Пинок"), UseSoundMarkVariation, 3)
+                    imgui.Checkbox(u8'Использовать альт. применение (может не работать)', UseSoundMarkAlt)
+                    imgui.SameLine()
+                    if imgui.Button(u8"Проверить звук") then
+                        SetCheckpointSound()
+                    end
+                    imgui.Separator()
+                end
                 imgui.Checkbox(u8'Использовать свое время отображения метки (мс)', UseCustomMarkTime)
                 if UseCustomMarkTime[0] then
                     imgui.SliderInt(u8'', CustomMarkTime, 100, 3500)
@@ -245,8 +265,10 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
         imgui.Checkbox(u8'Отчет о нейтрализации в /fs', ReportSquad)
         imgui.Checkbox(u8'Не использовать на друзьях', FriendReport)
         if FriendReport[0] then
+            imgui.Separator()
             imgui.Text(u8"Вводить с новой строки в формате Nick_Name без лишних символов")
             imgui.InputTextMultiline("##Ники", FriendReportText, 512)
+            imgui.Separator()
         end
 
     end
@@ -396,14 +418,11 @@ function Killsay()
     end)
 end
 
-function SetDeathCheckpoint()
-    local PlayerNickname = sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(playerPed)))
-
-    if PlayerNickname == SendNick and IgnoreYourMark[0] then
-        return false
-
-    else
-        if UseSoundMark[0] then
+function SetCheckpointSound()
+    if UseSoundMark[0] and UseSoundMarkVariation[0] == 1 then
+        if UseSoundMarkAlt[0] then
+            addOneOffSound(0.0, 0.0, 0.0, 21001)
+        else
             local bs = raknetNewBitStream()
             raknetBitStreamWriteInt32(bs, 21001)
             raknetBitStreamWriteFloat(bs, 0)
@@ -413,7 +432,47 @@ function SetDeathCheckpoint()
             raknetDeleteBitStream(bs)
         end
 
+    elseif UseSoundMark[0] and UseSoundMarkVariation[0] == 2 then
+        if UseSoundMarkAlt[0] then
+            addOneOffSound(0.0, 0.0, 0.0, 5205)
+        else
+            local bs = raknetNewBitStream()
+            raknetBitStreamWriteInt32(bs, 5205)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetEmulRpcReceiveBitStream(16, bs)
+            raknetDeleteBitStream(bs)
+        end
+
+    elseif UseSoundMark[0] and UseSoundMarkVariation[0] == 3 then
+        if UseSoundMarkAlt[0] then
+            addOneOffSound(0.0, 0.0, 0.0, 1136)
+        else
+            local bs = raknetNewBitStream()
+            raknetBitStreamWriteInt32(bs, 1136)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetEmulRpcReceiveBitStream(16, bs)
+            raknetDeleteBitStream(bs)
+        end
+    end
+end
+
+function SetDeathCheckpoint()
+    local PlayerNickname = sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(playerPed)))
+
+    if PlayerNickname == SendNick and IgnoreYourMark[0] then
+        return false
+
+    else
         lua_thread.create(function()
+
+            if UseSoundMark[0] then
+                SetCheckpointSound()
+            end
+
             local SetCheckpoint = createCheckpoint(2, tonumber(MarkX), tonumber(MarkY), tonumber(MarkZ), 0, 0, 0, 1)
             local MapIcon = addSpriteBlipForContactPoint(MarkX, MarkY, MarkZ, 19)
             table.insert(CheckpointTable, SetCheckpoint)
