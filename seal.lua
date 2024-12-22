@@ -14,8 +14,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 4
-local ScriptVersion_text = '0.2'
+local ScriptVersion = 5
+local ScriptVersion_text = '0.3'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -33,19 +33,21 @@ local ScriptSettings = inicfg.load({
         S_UseSquadMark = false,
         S_IgnoreMarkText = false,
         S_IgnoreYourMark = false,
+        S_UseSoundMark = false,
         S_ActivationKey = '',
         S_UseCustomMarkTime = false,
-        S_CustomMarkTime = 1000,
-        S_AutoReport = false;
-        S_ReportRadio = false;
-        S_ReportSquad = false;
+        S_CustomMarkTime = 1500,
+        S_AutoReport = false,
+        S_ReportRadio = false,
+        S_ReportSquad = false,
+        S_FriendReport = false,
 
     },
 
     text = {
         S_CustomKillsay = [[Тут можно написать собственные отыгровки.
-Максимум - 256 символов. Больше не получится ввести.
-Так что опирайся на свои возможности!]]
+Максимум - 256 символов. Больше не получится ввести.]],
+        S_FriendReportText = [[Isus_Christos]],
     }
   }, SourceSettings)
   inicfg.save(ScriptSettings, SourceSettings)
@@ -65,13 +67,18 @@ local SendSquadMark = imgui.new.bool(ScriptSettings.settings.S_SendSquadMark)
 local UseSquadMark = imgui.new.bool(ScriptSettings.settings.S_UseSquadMark)
 local IgnoreMarkText = imgui.new.bool(ScriptSettings.settings.S_IgnoreMarkText)
 local IgnoreYourMark = imgui.new.bool(ScriptSettings.settings.S_IgnoreYourMark)
+local UseSoundMark = imgui.new.bool(ScriptSettings.settings.S_UseSoundMark)
 local UseCustomMarkTime = imgui.new.bool(ScriptSettings.settings.S_UseCustomMarkTime)
-local CustomMarkTime = new.int(ScriptSettings.settings.S_CustomMarkTime) 
+local CustomMarkTime = new.int(ScriptSettings.settings.S_CustomMarkTime)
 
 -- Настройки отчетов
 local AutoReport = imgui.new.bool(ScriptSettings.settings.S_AutoReport) 
 local ReportRadio = imgui.new.bool(ScriptSettings.settings.S_ReportRadio) 
 local ReportSquad = imgui.new.bool(ScriptSettings.settings.S_ReportSquad)
+
+local FriendReport = imgui.new.bool(ScriptSettings.settings.S_FriendReport)
+ScriptSettings.text.S_FriendReportText = ScriptSettings.text.S_FriendReportText:gsub("&", "\n")
+local FriendReportText = new.char[512](u8(ScriptSettings.text.S_FriendReportText))
 
 local WinState = new.bool(false)
 local CheckpointTable = {}
@@ -180,14 +187,17 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
                 S_IgnoreYourMark = IgnoreYourMark[0],
                 S_UseCustomMarkTime = UseCustomMarkTime[0],
                 S_CustomMarkTime = CustomMarkTime[0],
-                S_AutoReport = AutoReport[0];
-                S_ReportRadio = ReportRadio[0];
-                S_ReportSquad = ReportSquad[0];
+                S_AutoReport = AutoReport[0],
+                S_ReportRadio = ReportRadio[0],
+                S_ReportSquad = ReportSquad[0],
+                S_FriendReport = FriendReport[0],
+                S_UseSoundMark = UseSoundMark[0]
 
             },
 
             text = {
-                S_CustomKillsay = (u8:decode(ffi.string(CustomKillsay))):gsub("\n", "&")
+                S_CustomKillsay = (u8:decode(ffi.string(CustomKillsay))):gsub("\n", "&"),
+                S_FriendReportText = (u8:decode(ffi.string(FriendReportText))):gsub("\n", "&")
             }
         }
         inicfg.save(SaveSettings, SourceSettings)
@@ -220,9 +230,10 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
                 imgui.Separator()
                 imgui.Checkbox(u8'Не показывать текст меток в чате', IgnoreMarkText)
                 imgui.Checkbox(u8'Игнорировать установку собственных меток', IgnoreYourMark)
+                imgui.Checkbox(u8'Проигрывать звук при установки метки', UseSoundMark)
                 imgui.Checkbox(u8'Использовать свое время отображения метки (мс)', UseCustomMarkTime)
                 if UseCustomMarkTime[0] then
-                    imgui.SliderInt(u8'', CustomMarkTime, 100, 2000)
+                    imgui.SliderInt(u8'', CustomMarkTime, 100, 3500)
                 end
                 imgui.Separator()
             end
@@ -232,6 +243,11 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
         imgui.Checkbox(u8'Автоматическая отправка при убийстве', AutoReport)
         imgui.Checkbox(u8'Отчет о нейтрализации в /rb', ReportRadio)
         imgui.Checkbox(u8'Отчет о нейтрализации в /fs', ReportSquad)
+        imgui.Checkbox(u8'Не использовать на друзьях', FriendReport)
+        if FriendReport[0] then
+            imgui.Text(u8"Вводить с новой строки в формате Nick_Name без лишних символов")
+            imgui.InputTextMultiline("##Ники", FriendReportText, 512)
+        end
 
     end
         
@@ -305,6 +321,15 @@ end
 
 function Killsay()
     lua_thread.create(function()
+
+        if FriendReport[0] then
+            for FriendReportNick in u8:decode(ffi.string(FriendReportText)):gmatch("[^\r\n]+") do
+                if FriendReportNick == EnemyNickname then
+                    return false
+                end
+            end
+        end
+
         if EnemyIsKilled and not IsKillsayActive then
 
             IsKillsayActive = true
@@ -373,9 +398,21 @@ end
 
 function SetDeathCheckpoint()
     local PlayerNickname = sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(playerPed)))
+
     if PlayerNickname == SendNick and IgnoreYourMark[0] then
         return false
+
     else
+        if UseSoundMark[0] then
+            local bs = raknetNewBitStream()
+            raknetBitStreamWriteInt32(bs, 21001)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetBitStreamWriteFloat(bs, 0)
+            raknetEmulRpcReceiveBitStream(16, bs)
+            raknetDeleteBitStream(bs)
+        end
+
         lua_thread.create(function()
             local SetCheckpoint = createCheckpoint(2, tonumber(MarkX), tonumber(MarkY), tonumber(MarkZ), 0, 0, 0, 1)
             local MapIcon = addSpriteBlipForContactPoint(MarkX, MarkY, MarkZ, 19)
@@ -383,7 +420,6 @@ function SetDeathCheckpoint()
             table.insert(MapIconsTable, MapIcon)
 
             if UseCustomMarkTime[0] then
-
                 wait(math.floor(CustomMarkTime[0]))
 
                 for i, CheckHandle in ipairs(CheckpointTable) do
@@ -397,7 +433,6 @@ function SetDeathCheckpoint()
                 end
 
             else
-
                 wait(1000)
 
                 for i, CheckHandle in ipairs(CheckpointTable) do
