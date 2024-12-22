@@ -230,7 +230,7 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
                 imgui.Separator()
                 imgui.Checkbox(u8'Ќе показывать текст меток в чате', IgnoreMarkText)
                 imgui.Checkbox(u8'»гнорировать установку собственных меток', IgnoreYourMark)
-                imgui.Checkbox(u8'ѕроигрывать звук при установки метки', UseSoundMark)
+                imgui.Checkbox(u8'ѕроигрывать звук при установке метки', UseSoundMark)
                 imgui.Checkbox(u8'»спользовать свое врем€ отображени€ метки (мс)', UseCustomMarkTime)
                 if UseCustomMarkTime[0] then
                     imgui.SliderInt(u8'', CustomMarkTime, 100, 3500)
