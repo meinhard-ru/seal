@@ -14,8 +14,8 @@ local u8 = encoding.UTF8
 -- Автообновление
 update_state = false;
 
-local ScriptVersion = 6
-local ScriptVersion_text = '0.31'
+local ScriptVersion = 7
+local ScriptVersion_text = '0.32'
 
 local UpdateSource = "https://raw.githubusercontent.com/meinhard-ru/seal/refs/heads/main/seal_update.ini"
 local UpdatePath = getWorkingDirectory() .. "seal_update.ini"
@@ -325,6 +325,11 @@ function main()
                     if EnemyHP == 0 and isCharDead(EnemyTarget) then
                         EnemyX, EnemyY, EnemyZ = getCharCoordinates(EnemyTarget)
                         EnemyIsKilled = true
+                        K_EnemyNickname = EnemyNickname
+                        K_EnemyID = EnemyID
+                        K_EnemyX = EnemyX
+                        K_EnemyY = EnemyY
+                        K_EnemyZ = EnemyZ
                         if EnemyIsKilled and AutoReport[0] and not IsKillsayActive then
                             Killsay()
                         end
@@ -346,7 +351,7 @@ function Killsay()
 
         if FriendReport[0] then
             for FriendReportNick in u8:decode(ffi.string(FriendReportText)):gmatch("[^\r\n]+") do
-                if FriendReportNick == EnemyNickname then
+                if FriendReportNick == K_EnemyNickname then
                     return false
                 end
             end
@@ -368,13 +373,13 @@ function Killsay()
                 if KillsayVariation[0] == 1 then
                     sampSendChat("/me расстегнул ширинку, приспустил джинсы, сделал тяжелый вдох, достал инструмент.")
                     wait(1400)
-                    sampSendChat("/do Ароматная золотая жидкость струйкой стекает по трупу "..EnemyNickname..".")
+                    sampSendChat("/do Ароматная золотая жидкость струйкой стекает по трупу "..K_EnemyNickname..".")
                     wait(1400)
                     sampSendChat("/me подтянул джинсы, вздохнул с облегчением, застегнул ширинку.")
                     wait(1400)
 
                 elseif KillsayVariation[0] == 2 then
-                    sampSendChat("Слышь "..EnemyNickname.." хуле ты мне сделаешь??")
+                    sampSendChat("Слышь "..K_EnemyNickname.." хуле ты мне сделаешь??")
                     wait(1400)
                     sampSendChat("вовторых пошел нахуй")
                     wait(1400)
@@ -382,12 +387,12 @@ function Killsay()
                     wait(1400)
 
                 elseif KillsayVariation[0] == 3 then
-                    sampSendChat("Hasta la vista, "..EnemyNickname)
+                    sampSendChat("Hasta la vista, "..K_EnemyNickname)
                     wait(1400)
 
                 elseif KillsayVariation[0] == 4 then
                     for CustomKillsay_text in u8:decode(ffi.string(CustomKillsay)):gmatch("[^\r\n]+") do
-                        CustomKillsay_text = CustomKillsay_text:gsub("$peenick", ''..EnemyNickname)
+                        CustomKillsay_text = CustomKillsay_text:gsub("$peenick", ''..K_EnemyNickname)
                         table.insert(T_CustomKillsay, CustomKillsay_text)
                     end
 
@@ -403,12 +408,12 @@ function Killsay()
 
 
             if ReportSquad[0] then
-                sampSendChat("/fs "..EnemyNickname.."["..EnemyID.."] нейтрализован.")
+                sampSendChat("/fs "..K_EnemyNickname.."["..K_EnemyID.."] нейтрализован.")
                 wait(1200)
             end
 
             if ReportRadio[0] then
-                sampSendChat("/rb "..EnemyNickname.."["..EnemyID.."] нейтрализован.")
+                sampSendChat("/rb "..EnemyNickname.."["..K_EnemyID.."] нейтрализован.")
                 wait(1200)
             end
 
@@ -510,7 +515,7 @@ end
 
 function Killsay_SendSquadMark()
     if getActiveInterior() == 0 then
-        sampSendChat("/u DCHECKSEALKPOSX"..math.floor(EnemyX).."Y"..math.floor(EnemyY).."Z"..math.floor(EnemyZ))
+        sampSendChat("/u DCHECKSEALKPOSX"..math.floor(K_EnemyX).."Y"..math.floor(K_EnemyY).."Z"..math.floor(K_EnemyZ))
         wait(1000)
     end
 end
